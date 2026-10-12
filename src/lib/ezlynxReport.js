@@ -54,6 +54,15 @@ export function toNumber(s) {
   return isNaN(n) ? 0 : n;
 }
 
+// EZLynx / Looker emits "1899-12-31" (SQL null-date sentinel) when a date
+// field is unset. Normalize to blank so the UI doesn't show the sentinel.
+function normalizeDate(s) {
+  if (!s) return '';
+  const t = String(s).trim();
+  if (t === '1899-12-31' || t === '12/31/1899') return '';
+  return t;
+}
+
 // Accepts either:
 //   - CSV text (string)
 //   - Array of row objects (webhook JSON — each key = column name)
@@ -102,10 +111,10 @@ function mapByIdx(r, idx) {
     policyStatus:        g(COLS.policyStatus),
     policyDetailStatus:  g(COLS.policyDetailStatus),
     transactionType:     g(COLS.transactionType),
-    effectiveDate:       g(COLS.effectiveDate),
-    expirationDate:      g(COLS.expirationDate),
-    changeDate:          g(COLS.changeDate),
-    downloadDate:        g(COLS.downloadDate),
+    effectiveDate:       normalizeDate(g(COLS.effectiveDate)),
+    expirationDate:      normalizeDate(g(COLS.expirationDate)),
+    changeDate:          normalizeDate(g(COLS.changeDate)),
+    downloadDate:        normalizeDate(g(COLS.downloadDate)),
     annualizedPremium:   toNumber(g(COLS.annualizedPremium)),
     writtenPremium:      toNumber(g(COLS.writtenPremium)),
     branch:              g(COLS.branch),
@@ -129,10 +138,10 @@ function mapByKey(o) {
     policyStatus:        g(COLS.policyStatus),
     policyDetailStatus:  g(COLS.policyDetailStatus),
     transactionType:     g(COLS.transactionType),
-    effectiveDate:       g(COLS.effectiveDate),
-    expirationDate:      g(COLS.expirationDate),
-    changeDate:          g(COLS.changeDate),
-    downloadDate:        g(COLS.downloadDate),
+    effectiveDate:       normalizeDate(g(COLS.effectiveDate)),
+    expirationDate:      normalizeDate(g(COLS.expirationDate)),
+    changeDate:          normalizeDate(g(COLS.changeDate)),
+    downloadDate:        normalizeDate(g(COLS.downloadDate)),
     annualizedPremium:   toNumber(g(COLS.annualizedPremium)),
     writtenPremium:      toNumber(g(COLS.writtenPremium)),
     branch:              g(COLS.branch),
