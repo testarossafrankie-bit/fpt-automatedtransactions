@@ -33,7 +33,7 @@ const COLS = {
   transactionType:   ['Policy Transaction Data Transaction Type', 'Transaction Type'],
   effectiveDate:     ['Policy Transaction Data Effective Date', 'Effective Date'],
   expirationDate:    ['Policy Transaction Data Expiration Date', 'Expiration Date'],
-  changeDate:        ['Policy Transaction Data Change Date', 'Change Date'],
+  changeDate:        ['Policy Transaction Data Change Date', 'Change Date', 'Policy Transaction Data Cancellation Date', 'Cancellation Date', 'Cancel Date'],
   downloadDate:      ['Policy Transaction Data Download Date', 'Download Date'],
   annualizedPremium: ['Policy Transaction Data Annualized Premium', 'Annualized Premium'],
   writtenPremium:    ['Policy Transaction Data Written Premium', 'Written Premium', 'Premium – Written', 'Premium - Written'],
