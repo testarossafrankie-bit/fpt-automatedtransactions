@@ -21,19 +21,40 @@ const AUDIT_CAP = 500;
 const hasKv = () =>
   Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
+// Diagnostic logger — writes to the webhook audit table on every attempt,
+// including rejections. Helps surface auth / payload issues without needing
+// Vercel log access.
+async function logAttempt(entry) {
+  if (!hasKv()) return;
+  try {
+    const audit = (await kv.get(AUDIT_KEY)) || [];
+    audit.unshift({ at: new Date().toISOString(), ...entry });
+    await kv.set(AUDIT_KEY, audit.slice(0, AUDIT_CAP));
+  } catch {}
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
   if (!hasKv()) return res.status(501).json({ error: 'KV not provisioned' });
+
+  const report = (req.query.report || '').toLowerCase();
+  const headerKeys = Object.keys(req.headers || {}).sort();
+  const bodySize = Buffer.isBuffer(req.body) ? req.body.length
+                 : Array.isArray(req.body) ? req.body.length
+                 : typeof req.body === 'string' ? req.body.length : 0;
 
   // Shared-secret auth (optional)
   const expected = process.env.WEBHOOK_SECRET;
   if (expected) {
     const got = req.headers['x-webhook-secret'];
-    if (got !== expected) return res.status(401).json({ error: 'bad secret' });
+    if (got !== expected) {
+      await logAttempt({ outcome: 'reject-401', report, headerKeys, hasSecretHeader: !!got, bodySize });
+      return res.status(401).json({ error: 'bad secret' });
+    }
   }
 
-  const report = (req.query.report || '').toLowerCase();
   if (report !== 'ptd' && report !== 'pending') {
+    await logAttempt({ outcome: 'reject-400', report, headerKeys, bodySize });
     return res.status(400).json({ error: 'report query param must be "ptd" or "pending"' });
   }
 
@@ -42,6 +63,7 @@ export default async function handler(req, res) {
   const payload = req.body;
   const rows = Array.isArray(payload) ? payload : (payload?.data || payload?.rows || []);
   if (!Array.isArray(rows)) {
+    await logAttempt({ outcome: 'reject-400-body', report, headerKeys, bodyType: typeof payload, bodySize, bodyKeys: payload && typeof payload === 'object' ? Object.keys(payload).slice(0, 10) : [] });
     return res.status(400).json({ error: 'body must be an array (or { data: [...] })' });
   }
 
