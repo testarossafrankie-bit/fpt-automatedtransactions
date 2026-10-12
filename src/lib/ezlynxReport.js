@@ -19,28 +19,32 @@ export const TX_NOISE = new Set([
   'Policy Change', 'Non-Renewal', 'Re-Issue', 'DB Synch',
 ]);
 
+// Each field has multiple candidate column names because EZLynx CSV exports
+// use "Policy Transaction Data X" prefixes while EZLynx JSON-Simple exports
+// drop the prefix. We try each candidate in order. The en-dash in
+// "Premium – Written" is intentional — matches EZLynx's JSON output.
 const COLS = {
-  customerName:      'Applicant Data Account Name',
-  policyNumber:      'Policy Transaction Data Policy Number',
-  carrier:           'Policy Transaction Data Master Company',
-  LOB:               'Policy Transaction Data Line Of Business',
-  policyStatus:      'Policy Transaction Data Current Policy Status',
-  policyDetailStatus:'Policy Transaction Data Policy Detail Status',
-  transactionType:   'Policy Transaction Data Transaction Type',
-  effectiveDate:     'Policy Transaction Data Effective Date',
-  expirationDate:    'Policy Transaction Data Expiration Date',
-  changeDate:        'Policy Transaction Data Change Date',
-  downloadDate:      'Policy Transaction Data Download Date',
-  annualizedPremium: 'Policy Transaction Data Annualized Premium',
-  writtenPremium:    'Policy Transaction Data Written Premium',
-  branch:            'Applicant Data Branch',
-  department:        'Policy Transaction Data Department',
-  serviceTeam:       'Serviceteampolicychangerequest Service Team',
-  assignedProducer:  'Applicant Data Assigned Producer',
-  csr:               'Applicant Data CSR',
-  applicantId:       'Policy Transaction Data Applicant ID',
-  policyId:          'Policy Transaction Data Policy ID',
-  policyTransactionId:'Policy Transaction Data Policy Transaction ID',
+  customerName:      ['Applicant Data Account Name', 'Account Name'],
+  policyNumber:      ['Policy Transaction Data Policy Number', 'Policy Number'],
+  carrier:           ['Policy Transaction Data Master Company', 'Master Company'],
+  LOB:               ['Policy Transaction Data Line Of Business', 'Line Of Business'],
+  policyStatus:      ['Policy Transaction Data Current Policy Status', 'Current Policy Status'],
+  policyDetailStatus:['Policy Transaction Data Policy Detail Status', 'Policy Detail Status'],
+  transactionType:   ['Policy Transaction Data Transaction Type', 'Transaction Type'],
+  effectiveDate:     ['Policy Transaction Data Effective Date', 'Effective Date'],
+  expirationDate:    ['Policy Transaction Data Expiration Date', 'Expiration Date'],
+  changeDate:        ['Policy Transaction Data Change Date', 'Change Date'],
+  downloadDate:      ['Policy Transaction Data Download Date', 'Download Date'],
+  annualizedPremium: ['Policy Transaction Data Annualized Premium', 'Annualized Premium'],
+  writtenPremium:    ['Policy Transaction Data Written Premium', 'Written Premium', 'Premium – Written', 'Premium - Written'],
+  branch:            ['Applicant Data Branch', 'Branch'],
+  department:        ['Policy Transaction Data Department', 'Department'],
+  serviceTeam:       ['Serviceteampolicychangerequest Service Team', 'Service Team'],
+  assignedProducer:  ['Applicant Data Assigned Producer', 'Assigned Producer'],
+  csr:               ['Applicant Data CSR', 'CSR'],
+  applicantId:       ['Policy Transaction Data Applicant ID', 'Applicant ID'],
+  policyId:          ['Policy Transaction Data Policy ID', 'Policy ID'],
+  policyTransactionId:['Policy Transaction Data Policy Transaction ID', 'Policy Transaction ID'],
 };
 
 // Parse $-prefixed string → number. "$1,234.56" → 1234.56. Blank → 0.
@@ -70,8 +74,26 @@ export function readReport(input) {
   return [];
 }
 
+// Try each candidate column name in order; return first non-empty hit.
+function pickIdx(candidates, idx, r) {
+  for (const c of candidates) {
+    if (idx[c] !== undefined) {
+      const v = r[idx[c]];
+      if (v !== undefined && v !== null && v !== '') return v;
+    }
+  }
+  return '';
+}
+function pickKey(candidates, o) {
+  for (const c of candidates) {
+    const v = o[c];
+    if (v !== undefined && v !== null && v !== '') return v;
+  }
+  return '';
+}
+
 function mapByIdx(r, idx) {
-  const g = (col) => (idx[col] !== undefined ? r[idx[col]] : '');
+  const g = (cols) => pickIdx(cols, idx, r);
   return {
     customerName:        g(COLS.customerName),
     policyNumber:        g(COLS.policyNumber),
@@ -98,7 +120,7 @@ function mapByIdx(r, idx) {
 }
 
 function mapByKey(o) {
-  const g = (col) => o[col] ?? '';
+  const g = (cols) => pickKey(cols, o);
   return {
     customerName:        g(COLS.customerName),
     policyNumber:        g(COLS.policyNumber),
