@@ -43,12 +43,15 @@ export default async function handler(req, res) {
                  : Array.isArray(req.body) ? req.body.length
                  : typeof req.body === 'string' ? req.body.length : 0;
 
-  // Shared-secret auth (optional)
+  // Shared-secret auth (optional). Accept via either X-Webhook-Secret header
+  // or ?secret= query param. EZLynx Reports 5.0 uses Looker Studio under
+  // the hood which doesn't support custom headers — URL param is the only
+  // way to pass auth from their scheduler.
   const expected = process.env.WEBHOOK_SECRET;
   if (expected) {
-    const got = req.headers['x-webhook-secret'];
+    const got = req.headers['x-webhook-secret'] || req.query.secret;
     if (got !== expected) {
-      await logAttempt({ outcome: 'reject-401', report, headerKeys, hasSecretHeader: !!got, bodySize });
+      await logAttempt({ outcome: 'reject-401', report, headerKeys, hasSecretHeader: !!req.headers['x-webhook-secret'], hasSecretQuery: !!req.query.secret, bodySize });
       return res.status(401).json({ error: 'bad secret' });
     }
   }
