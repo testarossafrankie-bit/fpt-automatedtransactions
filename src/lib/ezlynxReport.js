@@ -188,7 +188,7 @@ export function toRecord(raw, source) {
 
     transactionType: raw.transactionType,
     policyStatus:    raw.policyStatus,
-    cancelDate:      raw.changeDate || '',        // Pending reports: Change Date = cancel-effective
+    cancelDate:      raw.changeDate || raw.downloadDate || '',  // Pending uses Change Date; PTD falls back to Download Date (≈ cancel date for Cancel Confirmation; off by days for Cancel Req)
     effectiveDate:   raw.effectiveDate || '',
     expirationDate:  raw.expirationDate || '',
     downloadDate:    raw.downloadDate || '',
