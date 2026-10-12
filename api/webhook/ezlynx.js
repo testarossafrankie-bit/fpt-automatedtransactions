@@ -65,8 +65,15 @@ export default async function handler(req, res) {
   // Some providers wrap in { data: [...] }. Handle both.
   const payload = req.body;
   const rows = Array.isArray(payload) ? payload : (payload?.data || payload?.rows || []);
+  const bodySample = (() => {
+    try {
+      const s = typeof payload === 'string' ? payload : JSON.stringify(payload);
+      return s ? s.slice(0, 400) : '(empty)';
+    } catch { return '(unserializable)'; }
+  })();
+  const contentType = req.headers['content-type'] || '';
   if (!Array.isArray(rows)) {
-    await logAttempt({ outcome: 'reject-400-body', report, headerKeys, bodyType: typeof payload, bodySize, bodyKeys: payload && typeof payload === 'object' ? Object.keys(payload).slice(0, 10) : [] });
+    await logAttempt({ outcome: 'reject-400-body', report, headerKeys, bodyType: typeof payload, bodySize, bodyKeys: payload && typeof payload === 'object' ? Object.keys(payload).slice(0, 10) : [], contentType, bodySample });
     return res.status(400).json({ error: 'body must be an array (or { data: [...] })' });
   }
 
@@ -121,6 +128,9 @@ export default async function handler(req, res) {
   audit.unshift({
     at: new Date().toISOString(),
     report,
+    contentType,
+    bodySize,
+    bodySample,
     rawCount: parsed.rawCount,
     kept: parsed.records.length,
     added, updated, resolved,
