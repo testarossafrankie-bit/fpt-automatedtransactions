@@ -54,12 +54,16 @@ export function toNumber(s) {
   return isNaN(n) ? 0 : n;
 }
 
-// EZLynx / Looker emits "1899-12-31" (SQL null-date sentinel) when a date
-// field is unset. Normalize to blank so the UI doesn't show the sentinel.
+// EZLynx / Looker emits a null-date sentinel ("1899-12-31" or "1900-01-01")
+// when a date field is unset. Normalize both to blank.
+const NULL_DATE_SENTINELS = new Set([
+  '1899-12-31', '12/31/1899',
+  '1900-01-01', '1/1/1900', '01/01/1900',
+]);
 function normalizeDate(s) {
   if (!s) return '';
   const t = String(s).trim();
-  if (t === '1899-12-31' || t === '12/31/1899') return '';
+  if (NULL_DATE_SENTINELS.has(t)) return '';
   return t;
 }
 
