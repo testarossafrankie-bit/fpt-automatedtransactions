@@ -74,7 +74,13 @@ export default async function handler(req, res) {
   const bodySample = (() => {
     try {
       const s = typeof payload === 'string' ? payload : JSON.stringify(payload);
-      return s ? s.slice(0, 4000) : '(empty)';
+      if (!s) return '(empty)';
+      // Include a slice around the first data row too so we can see field names
+      // in actual rows, not just metadata.
+      const head = s.slice(0, 2000);
+      const dataIdx = s.indexOf('"attachment"');
+      const dataTail = dataIdx > 0 ? s.slice(dataIdx, dataIdx + 2000) : '';
+      return head + (dataTail ? '\n...ATTACHMENT...\n' + dataTail : '');
     } catch { return '(unserializable)'; }
   })();
   const serializedSize = (() => {
