@@ -61,19 +61,64 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'report query param must be "ptd" or "pending"' });
   }
 
-  // EZLynx JSON Simple format is typically an array of row objects.
-  // Some providers wrap in { data: [...] }. Handle both.
+  // EZLynx Reports 5.0 uses Looker Studio for webhook delivery. The POST
+  // body is a wrapper envelope:
+  //   { type: "query", scheduled_plan: { ... }, attachment: { data: "..." }, ... }
+  //
+  // The real row data lives in one of a few places depending on report type:
+  //   - attachment.data as a JSON string (most common for JSON — Simple format)
+  //   - scheduled_plan.query_result as an array
+  //   - scheduled_plan.data as an array
   const payload = req.body;
-  const rows = Array.isArray(payload) ? payload : (payload?.data || payload?.rows || []);
+  const contentType = req.headers['content-type'] || '';
   const bodySample = (() => {
     try {
       const s = typeof payload === 'string' ? payload : JSON.stringify(payload);
-      return s ? s.slice(0, 400) : '(empty)';
+      return s ? s.slice(0, 4000) : '(empty)';
     } catch { return '(unserializable)'; }
   })();
-  const contentType = req.headers['content-type'] || '';
+  const serializedSize = (() => {
+    try { return typeof payload === 'string' ? payload.length : JSON.stringify(payload).length; } catch { return 0; }
+  })();
+
+  // Try to unwrap Looker's envelope.
+  function extractRows(p) {
+    if (Array.isArray(p)) return p;
+    if (!p || typeof p !== 'object') return null;
+    // Common wrapper fields
+    if (Array.isArray(p.data)) return p.data;
+    if (Array.isArray(p.rows)) return p.rows;
+    // Looker-specific paths
+    const sp = p.scheduled_plan || {};
+    if (Array.isArray(sp.query_result)) return sp.query_result;
+    if (Array.isArray(sp.data)) return sp.data;
+    // Looker JSON attachment: base64-encoded or raw string
+    if (p.attachment) {
+      const att = p.attachment;
+      const raw = att.data || att.content || '';
+      if (raw) {
+        try { const decoded = typeof raw === 'string' && raw.length && raw[0] !== '[' && raw[0] !== '{'
+          ? Buffer.from(raw, 'base64').toString('utf8') : raw;
+          const parsed = typeof decoded === 'string' ? JSON.parse(decoded) : decoded;
+          if (Array.isArray(parsed)) return parsed;
+          if (Array.isArray(parsed?.data)) return parsed.data;
+          if (Array.isArray(parsed?.rows)) return parsed.rows;
+        } catch {}
+      }
+    }
+    return null;
+  }
+
+  const rows = extractRows(payload);
   if (!Array.isArray(rows)) {
-    await logAttempt({ outcome: 'reject-400-body', report, headerKeys, bodyType: typeof payload, bodySize, bodyKeys: payload && typeof payload === 'object' ? Object.keys(payload).slice(0, 10) : [], contentType, bodySample });
+    await logAttempt({
+      outcome: 'reject-400-body', report, headerKeys,
+      bodyType: typeof payload, bodySize: serializedSize,
+      bodyKeys: payload && typeof payload === 'object' ? Object.keys(payload).slice(0, 20) : [],
+      scheduledPlanKeys: payload?.scheduled_plan ? Object.keys(payload.scheduled_plan).slice(0, 20) : [],
+      attachmentKeys: payload?.attachment ? Object.keys(payload.attachment).slice(0, 20) : [],
+      contentType, bodySample,
+    });
     return res.status(400).json({ error: 'body must be an array (or { data: [...] })' });
   }
 
@@ -129,7 +174,7 @@ export default async function handler(req, res) {
     at: new Date().toISOString(),
     report,
     contentType,
-    bodySize,
+    bodySize: serializedSize,
     bodySample,
     rawCount: parsed.rawCount,
     kept: parsed.records.length,
