@@ -208,10 +208,11 @@ function CarrierSection({ tab, carrier, rows, updateOne, softDelete }) {
                       <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
                         r.rewriteLevel === 'STRONG' ? 'bg-emerald-100 text-emerald-800' :
                         r.rewriteLevel === 'LIKELY' ? 'bg-amber-100 text-amber-800' :
+                        r.status === 'rewrite' ? 'bg-sky-100 text-sky-800' :
                         'bg-slate-100 text-slate-700'
-                      }`}>{r.rewriteLevel}</span>
+                      }`}>{r.rewriteLevel || (r.status === 'rewrite' ? 'MANUAL' : '')}</span>
                       <button
-                        onClick={() => updateOne(r.id, { rewriteLevel: '', overrideRewrite: true })}
+                        onClick={() => updateOne(r.id, { rewriteLevel: '', overrideRewrite: true, status: r.status === 'rewrite' ? 'not_started' : r.status })}
                         className="ml-2 text-slate-400 hover:text-slate-700 text-xs"
                         title="Not a rewrite — move back to Save Queue"
                       >not a rewrite?</button>
