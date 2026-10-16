@@ -27,7 +27,7 @@ export const TABS = [
   },
 ];
 
-export const STATUSES = ['not_started', 'attempted', 'contacted', 'resolved', 'cancelled'];
+export const STATUSES = ['not_started', 'attempted', 'contacted', 'resolved', 'cancelled', 'rewrite'];
 
 export function tabMeta(key) {
   return TABS.find(t => t.key === key) || TABS[0];
@@ -42,6 +42,7 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 export function tabForRecord(r) {
   // Legacy IVANS records (pre-EZLynx-report migration) carry a bucket field.
   // Honor it so existing localStorage data still routes correctly.
+  if (r.status === 'rewrite') return 'rewrites';
   if (r.rewriteLevel) return 'rewrites';
   if (r.transactionType) {
     if (TX_REWRITE.has(r.transactionType)) return 'rewrites';
